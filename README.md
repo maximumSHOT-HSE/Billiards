@@ -20,4 +20,9 @@ is single positional arguments of script and prints into stdout.
 ## Run
 
 * `export PYTHONPATH=$PYTHONPATH:$(pwd)`
+
+### Run script
 * `python3 main.py`
+
+### Run tests
+* `python3 -m unittest test/test_rotate.py`
