@@ -1,20 +1,22 @@
 import argparse
 import sys
 
-from src.maxtrix_operations import rotate_matrix, read_matrix, write_matrix
+from src.image_operations import read_image, calc_circles
 
 if __name__ == '__main__':
+    sys.setrecursionlimit(10000)
+
     parser = argparse.ArgumentParser(
-        description='Two dimensional matrix rotator'
+        description='Red an black circles counter'
     )
     parser.add_argument(
         'file',
         type=str,
-        help='Path to the input file'
+        help='Path to the image in .png format'
     )
+
     args = parser.parse_args()
     file_path = args.file
-
-    matrix = read_matrix(file_path)
-    rotated_matrix = rotate_matrix(matrix)
-    write_matrix(sys.stdout, rotated_matrix)
+    image = read_image(file_path)
+    c_red, c_black = calc_circles(image)
+    print(f'{c_red} {c_black}')
