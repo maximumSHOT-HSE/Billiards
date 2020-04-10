@@ -3,6 +3,8 @@ import typing
 import cv2
 import numpy as np
 
+from src.video_operations import save_frames_as_video
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -54,22 +56,13 @@ def split_video(video_path: str, segments: typing.List[typing.Tuple[int, int]]):
     current_frames = []
     peace_id = 0
 
-    video_path_prefix = video_path[:-4]
-
-    def save_peace(peace_id, current_frames):
-        peace_path = f'{video_path_prefix}_{peace_id}.mp4'
-        h, w = current_frames[0].shape[: 2]
-        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-        writer = cv2.VideoWriter(peace_path, fourcc, fps, (w, h))
-        for frame in current_frames:
-            writer.write(frame)
-        writer.release()
-        print(f'{peace_path} saved')
+    video_path_prefix = video_path[:-4]  # removes .mp4 from path
 
     while capture.isOpened():
         while segment_id < len(segments) and segments[segment_id][1] < frame_id // fps + 1:
             if len(current_frames) > 0:
-                save_peace(peace_id, current_frames)
+                peace_path = f'{video_path_prefix}_{peace_id}.mp4'
+                save_frames_as_video(peace_path, current_frames, fps)
                 peace_id += 1
                 current_frames = []
             segment_id += 1
@@ -81,7 +74,8 @@ def split_video(video_path: str, segments: typing.List[typing.Tuple[int, int]]):
         frame_id += 1
 
     if len(current_frames) > 0:
-        save_peace(peace_id, current_frames)
+        peace_path = f'{video_path_prefix}_{peace_id}.mp4'
+        save_frames_as_video(peace_path, current_frames, fps)
 
 
 def validate_segments(segments) -> bool:
