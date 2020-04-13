@@ -135,22 +135,29 @@ def find_largest_area_component_mask(mask, center_ratio_size: float = 0.5):
     return color == best_component_color
 
 
-def find_table_polygon(
+def find_table_mask(
         frame,
-        largest_component_center_ratio_size: int = 0.5,
         same_color_threshold: int = 4000,
-        table_color_center_ratio_size=0.1
+        table_color_center_ratio_size: float = 0.1
 ):
-    frame = frame[:, :, ::-1]
     n, m, _ = frame.shape
 
     skip_pxl_n = int(n * (1 - table_color_center_ratio_size) / 2)
     skip_pxl_m = int(m * (1 - table_color_center_ratio_size) / 2)
 
-    table_color = np.mean(frame[skip_pxl_n: n - skip_pxl_n, skip_pxl_m: m - skip_pxl_m, :], axis=(0, 1))\
+    table_color = np.mean(frame[skip_pxl_n: n - skip_pxl_n, skip_pxl_m: m - skip_pxl_m, :], axis=(0, 1)) \
         .astype(dtype=int).clip(0, 255)
 
-    mask = (np.sum((frame - table_color) ** 2, axis=2) < same_color_threshold).astype(int)
+    return (np.sum((frame - table_color) ** 2, axis=2) < same_color_threshold).astype(int)
+
+
+def find_table_polygon(
+        frame,
+        largest_component_center_ratio_size: int = 0.5
+):
+    frame = frame[:, :, ::-1]
+
+    mask = find_table_mask(frame)
     mask = find_largest_area_component_mask(mask, largest_component_center_ratio_size)
 
     masked_frame = deepcopy(frame)
@@ -244,10 +251,16 @@ def exp3(input_video_path: str, output_video_path):
 
         hull = find_table_polygon(deepcopy(frame))
         hull_size = len(hull)
+
         hull_mask = find_convex_hull_mask(frame.shape[: 2], hull)
+        table_mask = find_table_mask(frame)
+
+        table_color = np.mean(frame[(hull_mask * table_mask) == 1], axis=0).astype(int)
+        player_mask = find_largest_area_component_mask((1 - hull_mask * table_mask) * hull_mask, center_ratio_size=1)
 
         img = frame
-        img[hull_mask == 0] = [0, 0, 0]
+        img[player_mask == 1] = table_color
+        img[hull_mask == 0] = frame[hull_mask == 0]
 
         for i in range(hull_size):
             x1, y1 = hull[i]
