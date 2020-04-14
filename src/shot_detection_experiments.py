@@ -261,6 +261,36 @@ def remove_big_angles_from_hull(hull, angle_threshold=np.pi * 160 / 180):
     return hull
 
 
+# pixel is the boundary pixel iff it has less than 8 filled neighbours
+# component is the boundary component iff it has at least one boundary pixel
+def find_boundary_components(mask, boundary):
+    queue = deque()
+    result = np.zeros_like(mask)
+    n, m = mask.shape
+
+    def is_boundary_pixel(i, j):
+        return (i == 0 or i == n - 1 or j == 0 or j == m - 1) or \
+               (boundary[i - 1, j - 1] + boundary[i - 1, j] + boundary[i - 1, j + 1] +
+                boundary[i, j - 1] + boundary[i, j + 1] +
+                boundary[i + 1, j - 1] + boundary[i + 1, j] + boundary[i + 1, j + 1] < 8)
+
+    for i in range(n):
+        for j in range(m):
+            if result[i, j] == 1 or mask[i, j] == 0 or not is_boundary_pixel(i, j):
+                continue
+            queue.append((i, j))
+            while len(queue) > 0:
+                vi, vj = queue.pop()
+                if vi < 0 or vi >= n or vj < 0 or vj >= m or result[vi, vj] == 1 or mask[vi, vj] == 0:
+                    continue
+                result[vi, vj] = 1
+                queue.append((vi - 1, vj))
+                queue.append((vi + 1, vj))
+                queue.append((vi, vj - 1))
+                queue.append((vi, vj + 1))
+    return result
+
+
 def take_longest_sides_from_hull(hull, k):
     n = len(hull)
     assert n >= k
@@ -327,13 +357,13 @@ def exp3(input_video_path: str, output_video_path):
 
         hull_mask = find_convex_hull_mask(frame.shape[: 2], hull)
         table_mask = find_table_mask(frame)
+        boundary_components = find_boundary_components(hull_mask * (1 - table_mask), hull_mask)
 
         table_color = np.mean(frame[(hull_mask * table_mask) == 1], axis=0).astype(int)
-        player_mask = find_largest_area_component_mask((1 - hull_mask * table_mask) * hull_mask, center_ratio_size=1)
-
         img = frame
-        img[player_mask == 1] = table_color
-        img[hull_mask == 0] = frame[hull_mask == 0]
+
+        # img[hull_mask == 0] = frame[hull_mask == 0]
+        img[boundary_components == 1] = table_color
 
         for i in range(hull_size):
             x1, y1 = hull[i]
@@ -341,14 +371,14 @@ def exp3(input_video_path: str, output_video_path):
             cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 4)
             cv2.circle(img, (x1, y1), 10, (0, 0, 255), 4)
 
-        plt.figure(figsize=(20, 20))
-        plt.imshow(img[:, :, ::-1])
-        plt.show()
-        break
+        # plt.figure(figsize=(20, 20))
+        # plt.imshow(img[:, :, ::-1])
+        # plt.show()
+        # break
 
         imgs.append(img)
 
-    # save_frames_as_video(output_video_path, imgs, fps)
+    save_frames_as_video(output_video_path, imgs, fps)
 
 
 def test_kate_images():
@@ -376,8 +406,9 @@ def test_kate_images():
 
 
 if __name__ == '__main__':
-    # for i in range(29):
-    #     exp3(f'resources/001/raw/video001_{i}.mp4', f'resources/001/exp4/video001_{i}_exp4.mp4')
+    for i in range(29):
+        if i == 5:
+            exp3(f'resources/001/raw/video001_{i}.mp4', f'resources/001/exp4/video001_{i}_exp4.mp4')
     # for i in range(24):
     #     exp3(f'resources/002/raw/video002_{i}.mp4', 'tmp.mp4')
     # for i in range(107):
@@ -386,6 +417,7 @@ if __name__ == '__main__':
     #     exp3(f'resources/004/raw/video004_{i}.mp4', 'tmp.mp4')
     # for i in range(109):
     #     exp3(f'resources/007/raw/video007_{i}.mp4', 'tmp.mp4')
-    for i in range(0, 15):
-        exp3(f'resources/009/raw_720p/video009_720p_{i}.mp4', f'resources/009/exp3/video009_720p_{i}_exp3.mp4')
+    # for i in range(0, 15):
+    #     if i == 8:
+    #         exp3(f'resources/009/raw_720p/video009_720p_{i}.mp4', f'resources/009/exp4/video009_720p_{i}_exp4.mp4')
     pass
