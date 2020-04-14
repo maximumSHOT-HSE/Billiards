@@ -215,6 +215,9 @@ def find_convex_hull_mask(size, hull):
         alpha = (x - x1) / (x2 - x1)
         return int(np.round((1 - alpha) * y1 + alpha * y2))
 
+    lx = max(0, lx)
+    rx = min(n - 1, rx)
+
     for x in range(lx, rx + 1):
         while hull[i][1] < x:
             i = get_prev(i)
@@ -222,11 +225,78 @@ def find_convex_hull_mask(size, hull):
             j = get_next(j)
         yi = get_y_on_segment(hull[i], hull[get_next(i)], x, 'up')
         yj = get_y_on_segment(hull[j], hull[get_prev(j)], x, 'down')
+        yi = max(0, min(m - 1, yi))
+        yj = max(0, min(m - 1, yj))
         if yi > yj:
             yi, yj = yj, yi
         mask[x, yi: yj + 1] = 1
 
     return mask
+
+
+def remove_big_angles_from_hull(hull, angle_threshold=np.pi * 160 / 180):
+    n = len(hull)
+
+    def get_angle(i):
+        prv = (i - 1 + n) % n
+        nxt = (i + 1) % n
+
+        v1 = hull[nxt] - hull[i]
+        v2 = hull[prv] - hull[i]
+
+        return math.acos(np.sum(v1 * v2) / np.linalg.norm(v1) / np.linalg.norm(v2))
+
+    while True:
+        mx_angle_id = 0
+        mx_angle = 0
+        for i in range(n):
+            ith_angle = get_angle(i)
+            if ith_angle > mx_angle:
+                mx_angle, mx_angle_id = ith_angle, i
+        if mx_angle < angle_threshold:
+            break
+        hull = np.concatenate((hull[: mx_angle_id], hull[mx_angle_id + 1: ]))
+        n -= 1
+
+    return hull
+
+
+def take_longest_sides_from_hull(hull, k):
+    n = len(hull)
+    assert n >= k
+    ids = list(range(n))
+    ids.sort(key=lambda i: np.linalg.norm(hull[i] - hull[(i + 1) % n]), reverse=True)
+    ids = list(sorted(ids[: k]))
+
+    khull = []
+    for it in range(k):
+        i1 = ids[it]
+        i2 = (i1 + 1) % n
+        j1 = ids[(it + 1) % k]
+        j2 = (j1 + 1) % n
+
+        v1 = hull[i1] - hull[i2]
+        v2 = hull[j1] - hull[j2]
+
+        assert np.linalg.norm(v1) > 0
+        assert np.linalg.norm(v2) > 0
+
+        # hull[i1] + t * v1
+
+        t = (
+            (hull[i1][1] - hull[j1][1]) * v2[0] -
+            (hull[i1][0] - hull[j1][0]) * v2[1]
+        ) / (v1[0] * v2[1] - v1[1] * v2[0])
+
+        print(hull[i1], hull[i2])
+        print(hull[j1], hull[j2])
+        print(hull[i1] + v1 * t)
+
+        # khull.append(hull[i1])
+        # khull.append(hull[i2])
+        khull.append(hull[i1] + v1 * t)
+
+    return np.array(khull, dtype=int)
 
 
 # color of the table is the mean color among pixels in the some center part of the frame
@@ -250,6 +320,9 @@ def exp3(input_video_path: str, output_video_path):
             break
 
         hull = find_table_polygon(deepcopy(frame))
+        hull = remove_big_angles_from_hull(hull)
+        hull = take_longest_sides_from_hull(hull, 4)
+
         hull_size = len(hull)
 
         hull_mask = find_convex_hull_mask(frame.shape[: 2], hull)
@@ -303,9 +376,8 @@ def test_kate_images():
 
 
 if __name__ == '__main__':
-    for i in range(29):
-        if i == 0:
-            exp3(f'resources/001/raw/video001_{i}.mp4', f'resources/001/exp3/video001_{i}_exp3.mp4')
+    # for i in range(29):
+    #     exp3(f'resources/001/raw/video001_{i}.mp4', f'resources/001/exp4/video001_{i}_exp4.mp4')
     # for i in range(24):
     #     exp3(f'resources/002/raw/video002_{i}.mp4', 'tmp.mp4')
     # for i in range(107):
