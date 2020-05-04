@@ -47,6 +47,7 @@ class Application:
         self.root.bind('q', self.close_button_clicked)
         self.root.bind('d', self.next_button_clicked)
         self.root.bind('r', self.flip_pocket_flag)
+        self.root.bind('s', self.next_image)
 
         # configure draw area
         self.canvas = Canvas(self.root, bg='white')
@@ -144,11 +145,7 @@ class Application:
         return np.array(hull), int(self.pocket_flag ^ (i % 2))
 
     def next_button_clicked(self, event=None):
-        # frame = cv2.imread('42.png')
         rel_hull, rel_flag = self.get_relative_hull_with_pocket_flag()
-        # highlight_table_on_frame(frame, rel_hull)
-        # print(f'SAVE and move to the next one, pocket flag = {rel_flag}')
-        # plt.imsave('tmp.png', frame[:, :, ::-1])
         print(type(rel_hull), type(rel_flag))
         record = pd.DataFrame([[self.images_paths[self.current_image_ptr]]
                                + rel_hull.reshape(-1).tolist()
@@ -157,6 +154,10 @@ class Application:
         self.df = self.df.append(record, ignore_index=True)
         self.df.to_csv(self.layout_path, index=False, header=None)
         print(self.df)
+
+        self.next_image()
+
+    def next_image(self, event=None):
         self.current_image_ptr += 1
         if self.current_image_ptr == len(self.images_paths):
             self.root.quit()
