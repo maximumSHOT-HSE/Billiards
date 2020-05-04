@@ -1,14 +1,12 @@
-from tkinter import *
-import cv2
-from PIL import Image, ImageTk
-import matplotlib.pyplot as plt
-import numpy as np
-from highlight_table import highlight_table_on_frame
-from copy import deepcopy
 import argparse
 import os
-import pandas as pd
+import time
+from tkinter import *
 
+import cv2
+import numpy as np
+import pandas as pd
+from PIL import Image, ImageTk
 
 ACCEPTABLE_IMAGE_FORMATS = ['.png', '.jpg', '.jpeg']
 
@@ -23,6 +21,8 @@ def is_image_format(path):
 class Application:
 
     def __init__(self, width, height, layout_path, dir_path):
+        self.t0 = time.time()
+
         self.width = width
         self.height = height
 
@@ -70,11 +70,11 @@ class Application:
         self.reset_polygon()
         title = f'{ptr+1}/{len(self.images_paths)}: {self.images_paths[ptr]}'
         self.root.title(title)
-        self.draw_polygon()
+        self.draw()
 
     def flip_pocket_flag(self, event):
         self.pocket_flag ^= 1
-        self.draw_polygon()
+        self.draw()
 
     def set_window_size(self, width, height):
         self.root.geometry(f'{width}x{height}')
@@ -92,9 +92,9 @@ class Application:
     def rmouse_clicked(self, event):
         id = self.find_nearest_vertex_id(event.x, event.y)
         self.polygon_vertices[id] = np.array([event.x, event.y])
-        self.draw_polygon()
+        self.draw()
 
-    def draw_polygon(self):
+    def draw(self):
         self.canvas.delete('all')
 
         np_img = cv2.imread(os.path.abspath(os.path.join(self.layout_dir_path,
@@ -116,6 +116,8 @@ class Application:
                 j = (i + 1) % len(self.polygon_vertices)
                 qx, qy = (self.polygon_vertices[j] + self.polygon_vertices[i]) / 2
                 self.canvas.create_oval(qx - r, qy - r, qx + r, qy + r, fill='', outline='red', width=2)
+
+        self.canvas.create_text(0, 0, anchor='nw', fill='darkblue', font='Times 20 italic bold', text=str(time.time() - self.t0))
 
     def close_button_clicked(self, event=None):
         self.root.quit()
